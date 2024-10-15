@@ -266,3 +266,38 @@ for var in variables:
     plt.savefig(os.path.join(save_dir, f"Histogram_{safe_var_name}_Training_Set.jpg"))  # Save the histogram as JPG
     plt.show()  # Show the histogram in the console
     plt.close()
+
+def predict_new_data(new_data):
+    """
+    Predict the Failure Mode for new data using the trained model.
+    
+    Parameters:
+    - new_data: pd.DataFrame with the same features as the training data (without 'Failure Mode')
+    
+    Returns:
+    - predictions: The predicted Failure Mode
+    """
+    # Ensure new_data is a DataFrame
+    if isinstance(new_data, pd.DataFrame):
+        # Use the trained model to predict new data
+        predictions = grid_search.predict(new_data)
+        return predictions
+    else:
+        raise ValueError("Input data should be a Pandas DataFrame with the same features as the training data.")
+
+# Example usage: Predicting a new sample
+new_sample = pd.DataFrame({
+    "fc' (Mpa)": [43.6],  # Example values
+    'Ec (Gpa)': [31.034],
+    'fyl (MPa)': [365.2],
+    'fyt (MPa)': [346.9],
+    'a (mm)': [744.76],
+    'Sm (mm)': [100],
+    'c1/c2': [1],
+    'pl (%)': [2.34],
+    'ps (%)': [0.77],
+    'a/d': [1]
+})
+
+prediction = predict_new_data(new_sample)
+print("Predicted Failure Mode for the new sample:", prediction)
