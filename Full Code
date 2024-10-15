@@ -1,0 +1,268 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+import numpy as np
+import os
+
+# Load the dataset
+file_path = 'C:\\Users\\Pranav\\Desktop\\SURA Docs\\SURA Data New.xlsx'
+df = pd.read_excel(file_path, skiprows=1)
+
+# Define the columns to use
+columns_to_use = [
+    "fc' (Mpa)", 'Ec (Gpa)', 'fyl (MPa)', 'fyt (MPa)',
+    'a (mm)', 'Sm (mm)', 'c1/c2', 'pl (%)', 'ps (%)', 'Failure Mode', 'a/d'
+]
+
+# Select the specified columns
+df = df[columns_to_use]
+
+# Replace infinite values with NaN to handle them during imputation
+df.replace([np.inf, -np.inf], np.nan, inplace=True)
+
+# Drop rows where 'Failure Mode' is NaN to keep the target consistent
+df = df.dropna(subset=['Failure Mode'])
+
+# Split the data into features (X) and target (y)
+X = df.drop('Failure Mode', axis=1)
+y = df['Failure Mode']
+
+# Impute missing values with median values for X
+imputer = SimpleImputer(strategy='median')
+X_imputed = pd.DataFrame(imputer.fit_transform(X), columns=X.columns)
+
+# Drop rows with NaNs in both X_imputed and y
+X_imputed['Failure Mode'] = y.values  # Add y as a column temporarily for joint dropping
+X_imputed.dropna(inplace=True)  # Drop rows with NaNs in any column
+y = X_imputed['Failure Mode'].reset_index(drop=True)  # Extract cleaned y and reset index
+X_imputed = X_imputed.drop('Failure Mode', axis=1).reset_index(drop=True)  # Clean X and reset index
+
+# Ensure consistent data types
+X_imputed = X_imputed.astype(float)
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X_imputed, y, test_size=0.2, random_state=0)
+
+# Define a pipeline with scaling and SVC
+pipeline = Pipeline([
+    ('scaler', StandardScaler()),
+    ('svc', SVC())
+])
+
+# Define the hyperparameter grid for GridSearchCV
+param_grid = {
+    'svc__C': [0.1, 1, 10, 100, 1000],
+    'svc__kernel': ['linear', 'rbf']
+}
+
+# Set up StratifiedKFold for cross-validation
+skf = StratifiedKFold(n_splits=3, shuffle=True, random_state=0)
+
+# Perform grid search to find the best hyperparameters
+grid_search = GridSearchCV(pipeline, param_grid, cv=skf, scoring='accuracy')
+grid_search.fit(X_train, y_train)
+
+# Extract the best parameters from the grid search
+best_params = grid_search.best_params_
+
+# Make predictions on the test set
+y_pred_test = grid_search.predict(X_test)
+
+# Calculate accuracy, classification report, and confusion matrix for test set
+accuracy_test = accuracy_score(y_test, y_pred_test)
+classification_rep_test = classification_report(y_test, y_pred_test)
+confusion_mat_test = confusion_matrix(y_test, y_pred_test)
+
+# Print the results for test set
+print("Test Set Results")
+print("Accuracy:", accuracy_test)
+print("Best Parameters:", best_params)
+print("Classification Report:\n", classification_rep_test)
+print("Confusion Matrix:\n", confusion_mat_test)
+
+# Make predictions on the training set
+y_pred_train = grid_search.predict(X_train)
+
+# Calculate accuracy, classification report, and confusion matrix for training set
+accuracy_train = accuracy_score(y_train, y_pred_train)
+classification_rep_train = classification_report(y_train, y_pred_train)
+confusion_mat_train = confusion_matrix(y_train, y_pred_train)
+
+# Print the results for training set
+print("\nTraining Set Results")
+print("Accuracy:", accuracy_train)
+print("Classification Report:\n", classification_rep_train)
+print("Confusion Matrix:\n", confusion_mat_train)
+
+# Add predictions to the test set for visualization
+X_test['Predicted Failure Mode'] = y_pred_test
+X_train['Predicted Failure Mode'] = y_pred_train
+
+# Define a contrasting color palette
+unique_failure_modes = X_test['Predicted Failure Mode'].unique()
+palette = sns.color_palette("husl", n_colors=len(unique_failure_modes))
+
+# Create a directory to save the plots
+save_dir = 'C:\\Users\\Pranav\\Desktop\\SURA_Plots'
+os.makedirs(save_dir, exist_ok=True)
+
+# 1. Plot pl vs ps using different markers for each failure mode for the test set
+plt.figure(figsize=(10, 6))
+sns.scatterplot(
+    data=X_test,
+    x='pl (%)',
+    y='ps (%)',
+    hue='Predicted Failure Mode',
+    palette=palette,
+    style='Predicted Failure Mode',
+    markers=['o', 's', 'D', '^', 'v', 'P', 'X', 'd', '<', '>'][:len(unique_failure_modes)],
+    s=100
+)
+plt.title("Test Set: pl (%) vs ps (%)", fontsize=16)
+plt.xlabel("pl (%)", fontsize=14)
+plt.ylabel("ps (%)", fontsize=14)
+plt.xlim(0, X_test['pl (%)'].max() * 1.1)
+plt.ylim(0, X_test['ps (%)'].max() * 1.1)
+plt.axhline(y=X_test['ps (%)'].max()*1.1, color='red', linestyle='--', linewidth=1)
+plt.axvline(x=X_test['pl (%)'].max()*1.1, color='red', linestyle='--', linewidth=1)
+plt.legend(title="Predicted Failure Mode", loc='upper right', fontsize=12)
+plt.grid(True)
+plt.savefig(os.path.join(save_dir, "Test_Set_pl_vs_ps.jpg"))
+plt.show()  # Show the scatter plot in the console
+plt.close()
+
+# 1. Plot pl vs ps using different markers for each failure mode for the training set
+plt.figure(figsize=(10, 6))
+sns.scatterplot(
+    data=X_train,
+    x='pl (%)',
+    y='ps (%)',
+    hue='Predicted Failure Mode',
+    palette=palette,
+    style='Predicted Failure Mode',
+    markers=['o', 's', 'D', '^', 'v', 'P', 'X', 'd', '<', '>'][:len(unique_failure_modes)],
+    s=100
+)
+plt.title("Training Set: pl (%) vs ps (%)", fontsize=16)
+plt.xlabel("pl (%)", fontsize=14)
+plt.ylabel("ps (%)", fontsize=14)
+plt.xlim(0, X_train['pl (%)'].max() * 1.1)
+plt.ylim(0, X_train['ps (%)'].max() * 1.1)
+plt.axhline(y=X_train['ps (%)'].max()*1.1, color='red', linestyle='--', linewidth=1)
+plt.axvline(x=X_train['pl (%)'].max()*1.1, color='red', linestyle='--', linewidth=1)
+plt.legend(title="Predicted Failure Mode", loc='upper right', fontsize=12)
+plt.grid(True)
+plt.savefig(os.path.join(save_dir, "Training_Set_pl_vs_ps.jpg"))
+plt.show()  # Show the scatter plot in the console
+plt.close()
+
+# 2. Plot AR (c1/c2) vs a/d using different markers for each failure mode for the test set
+plt.figure(figsize=(10, 6))
+sns.scatterplot(
+    data=X_test,
+    x='c1/c2',  # Assuming c1/c2 acts as an AR for this example
+    y='a/d',
+    hue='Predicted Failure Mode',
+    palette=palette,
+    style='Predicted Failure Mode',
+    markers=['o', 's', 'D', '^', 'v', 'P', 'X', 'd', '<', '>'][:len(unique_failure_modes)],
+    s=100
+)
+plt.title("Test Set: AR (c1/c2) vs a/d", fontsize=16)
+plt.xlabel("AR (c1/c2)", fontsize=14)
+plt.ylabel("a/d", fontsize=14)
+plt.xlim(0, X_test['c1/c2'].max() * 1.3)
+plt.ylim(0, X_test['a/d'].max() * 1.3)
+plt.axhline(y=X_test['a/d'].max()*1.3, color='red', linestyle='--', linewidth=1)
+plt.axvline(x=X_test['c1/c2'].max()*1.3, color='red', linestyle='--', linewidth=1)
+plt.legend(title="Predicted Failure Mode", loc='upper right', fontsize=12)
+plt.grid(True)
+plt.savefig(os.path.join(save_dir, "Test_Set_AR_vs_a_d.jpg"))
+plt.show()  # Show the scatter plot in the console
+plt.close()
+
+# 2. Plot AR (c1/c2) vs a/d using different markers for each failure mode for the training set
+plt.figure(figsize=(10, 6))
+sns.scatterplot(
+    data=X_train,
+    x='c1/c2',  # Assuming c1/c2 acts as an AR for this example
+    y='a/d',
+    hue='Predicted Failure Mode',
+    palette=palette,
+    style='Predicted Failure Mode',
+    markers=['o', 's', 'D', '^', 'v', 'P', 'X', 'd', '<', '>'][:len(unique_failure_modes)],
+    s=100
+)
+plt.title("Training Set: AR (c1/c2) vs a/d", fontsize=16)
+plt.xlabel("AR (c1/c2)", fontsize=14)
+plt.ylabel("a/d", fontsize=14)
+plt.xlim(0, X_train['c1/c2'].max() * 1.3)
+plt.ylim(0, X_train['a/d'].max() * 1.3)
+plt.axhline(y=X_train['a/d'].max()*1.3, color='red', linestyle='--', linewidth=1)
+plt.axvline(x=X_train['c1/c2'].max()*1.3, color='red', linestyle='--', linewidth=1)
+plt.legend(title="Predicted Failure Mode", loc='upper right', fontsize=12)
+plt.grid(True)
+plt.savefig(os.path.join(save_dir, "Training_Set_AR_vs_a_d.jpg"))
+plt.show()  # Show the scatter plot in the console
+plt.close()
+
+# Histograms for each variable, without hue for the test set
+variables = X_test.columns[:-1]  # Exclude 'Predicted Failure Mode'
+for var in variables:
+    # Replace '/' with '_' to make valid filenames
+    safe_var_name = var.replace('/', '_')  # Replace any invalid characters
+    plt.figure(figsize=(10, 6))
+    ax = sns.histplot(data=X_test, x=var, bins=20)
+    plt.title(f"Histogram of {var} - Test Set", fontsize=16)
+    plt.xlabel(var, fontsize=14)
+    plt.ylabel("Frequency", fontsize=14)
+    plt.grid(True)
+    plt.xticks(fontsize=12)
+
+    # Add text annotations for each bar
+    for p in ax.patches:
+        ax.annotate(f'{int(p.get_height())}', 
+                    (p.get_x() + p.get_width() / 2., p.get_height()), 
+                    ha='center', va='bottom', fontsize=10)
+
+    # Remove zeros from x-ticks
+    ticks = ax.get_xticks()
+    ticks = [tick for tick in ticks if tick != 0]  # Exclude zero
+    ax.set_xticks(ticks)
+
+    plt.savefig(os.path.join(save_dir, f"Histogram_{safe_var_name}_Test_Set.jpg"))  # Save the histogram as JPG
+    plt.show()  # Show the histogram in the console
+    plt.close()
+
+# Histograms for each variable, without hue for the training set
+for var in variables:
+    # Replace '/' with '_' to make valid filenames
+    safe_var_name = var.replace('/', '_')  # Replace any invalid characters
+    plt.figure(figsize=(10, 6))
+    ax = sns.histplot(data=X_train, x=var, bins=20)
+    plt.title(f"Histogram of {var} - Training Set", fontsize=16)
+    plt.xlabel(var, fontsize=14)
+    plt.ylabel("Frequency", fontsize=14)
+    plt.grid(True)
+    plt.xticks(fontsize=12)
+
+    # Add text annotations for each bar
+    for p in ax.patches:
+        ax.annotate(f'{int(p.get_height())}', 
+                    (p.get_x() + p.get_width() / 2., p.get_height()), 
+                    ha='center', va='bottom', fontsize=10)
+
+    # Remove zeros from x-ticks
+    ticks = ax.get_xticks()
+    ticks = [tick for tick in ticks if tick != 0]  # Exclude zero
+    ax.set_xticks(ticks)
+
+    plt.savefig(os.path.join(save_dir, f"Histogram_{safe_var_name}_Training_Set.jpg"))  # Save the histogram as JPG
+    plt.show()  # Show the histogram in the console
+    plt.close()
