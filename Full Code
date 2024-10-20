@@ -162,11 +162,11 @@ plt.savefig(os.path.join(save_dir, "Training_Set_pl_vs_ps.jpg"))
 plt.show()  # Show the scatter plot in the console
 plt.close()
 
-# 2. Plot AR (c1/c2) vs a/d using different markers for each failure mode for the test set
+# 2. Plot fc' vs a/d using different markers for each failure mode for the test set
 plt.figure(figsize=(10, 6))
 sns.scatterplot(
     data=X_test,
-    x='c1/c2',  # Assuming c1/c2 acts as an AR for this example
+    x="fc' (Mpa)",  # Changed from 'c1/c2' to "fc'"
     y='a/d',
     hue='Predicted Failure Mode',
     palette=palette,
@@ -174,24 +174,24 @@ sns.scatterplot(
     markers=['o', 's', 'D', '^', 'v', 'P', 'X', 'd', '<', '>'][:len(unique_failure_modes)],
     s=100
 )
-plt.title("Test Set: AR (c1/c2) vs a/d", fontsize=16)
-plt.xlabel("AR (c1/c2)", fontsize=14)
+plt.title("Test Set: fc' vs a/d", fontsize=16)
+plt.xlabel("fc' (Mpa)", fontsize=14)
 plt.ylabel("a/d", fontsize=14)
-plt.xlim(0, X_test['c1/c2'].max() * 1.3)
+plt.xlim(0, X_test["fc' (Mpa)"].max() * 1.3)
 plt.ylim(0, X_test['a/d'].max() * 1.3)
 plt.axhline(y=X_test['a/d'].max()*1.3, color='red', linestyle='--', linewidth=1)
-plt.axvline(x=X_test['c1/c2'].max()*1.3, color='red', linestyle='--', linewidth=1)
+plt.axvline(x=X_test["fc' (Mpa)"].max()*1.3, color='red', linestyle='--', linewidth=1)
 plt.legend(title="Predicted Failure Mode", loc='upper right', fontsize=12)
 plt.grid(True)
-plt.savefig(os.path.join(save_dir, "Test_Set_AR_vs_a_d.jpg"))
-plt.show()  # Show the scatter plot in the console
+plt.savefig(os.path.join(save_dir, "Test_Set_fc_vs_a_d.jpg"))
+plt.show()
 plt.close()
 
-# 2. Plot AR (c1/c2) vs a/d using different markers for each failure mode for the training set
+# 2. Plot fc' vs a/d using different markers for each failure mode for the training set
 plt.figure(figsize=(10, 6))
 sns.scatterplot(
     data=X_train,
-    x='c1/c2',  # Assuming c1/c2 acts as an AR for this example
+    x="fc' (Mpa)",  # Changed from 'c1/c2' to "fc'"
     y='a/d',
     hue='Predicted Failure Mode',
     palette=palette,
@@ -199,73 +199,46 @@ sns.scatterplot(
     markers=['o', 's', 'D', '^', 'v', 'P', 'X', 'd', '<', '>'][:len(unique_failure_modes)],
     s=100
 )
-plt.title("Training Set: AR (c1/c2) vs a/d", fontsize=16)
-plt.xlabel("AR (c1/c2)", fontsize=14)
+plt.title("Training Set: fc' vs a/d", fontsize=16)
+plt.xlabel("fc' (Mpa)", fontsize=14)
 plt.ylabel("a/d", fontsize=14)
-plt.xlim(0, X_train['c1/c2'].max() * 1.3)
+plt.xlim(0, X_train["fc' (Mpa)"].max() * 1.3)
 plt.ylim(0, X_train['a/d'].max() * 1.3)
 plt.axhline(y=X_train['a/d'].max()*1.3, color='red', linestyle='--', linewidth=1)
-plt.axvline(x=X_train['c1/c2'].max()*1.3, color='red', linestyle='--', linewidth=1)
+plt.axvline(x=X_train["fc' (Mpa)"].max()*1.3, color='red', linestyle='--', linewidth=1)
 plt.legend(title="Predicted Failure Mode", loc='upper right', fontsize=12)
 plt.grid(True)
-plt.savefig(os.path.join(save_dir, "Training_Set_AR_vs_a_d.jpg"))
-plt.show()  # Show the scatter plot in the console
+plt.savefig(os.path.join(save_dir, "Training_Set_fc_vs_a_d.jpg"))
+plt.show()
 plt.close()
 
-# Histograms for each variable, without hue for the test set
-variables = X_test.columns[:-1]  # Exclude 'Predicted Failure Mode'
-for var in variables:
-    # Replace '/' with '_' to make valid filenames
-    safe_var_name = var.replace('/', '_')  # Replace any invalid characters
-    plt.figure(figsize=(10, 6))
-    ax = sns.histplot(data=X_test, x=var, bins=20)
-    plt.title(f"Histogram of {var} - Test Set", fontsize=16)
-    plt.xlabel(var, fontsize=14)
-    plt.ylabel("Frequency", fontsize=14)
-    plt.grid(True)
-    plt.xticks(fontsize=12)
+# 3. Histogram of fc' for the entire dataset (without separating training and test sets)
+plt.figure(figsize=(10, 6))
+sns.histplot(df["fc' (Mpa)"], kde=False, bins=30, color='blue')
+plt.title("Histogram of fc' (Mpa) for Entire Dataset", fontsize=16)
+plt.xlabel("fc' (Mpa)", fontsize=14)
+plt.ylabel("Frequency", fontsize=14)
+plt.axvline(x=df["fc' (Mpa)"].min(), color='red', linestyle='--', linewidth=2, label='Lower Limit')
+plt.axvline(x=df["fc' (Mpa)"].max(), color='green', linestyle='--', linewidth=2, label='Upper Limit')
+plt.legend(fontsize=12)
+plt.grid(True)
+plt.savefig(os.path.join(save_dir, "Histogram_fc.jpg"))
+plt.show()
+plt.close()
 
-    # Add text annotations for each bar
-    for p in ax.patches:
-        ax.annotate(f'{int(p.get_height())}', 
-                    (p.get_x() + p.get_width() / 2., p.get_height()), 
-                    ha='center', va='bottom', fontsize=10)
-
-    # Remove zeros from x-ticks
-    ticks = ax.get_xticks()
-    ticks = [tick for tick in ticks if tick != 0]  # Exclude zero
-    ax.set_xticks(ticks)
-
-    plt.savefig(os.path.join(save_dir, f"Histogram_{safe_var_name}_Test_Set.jpg"))  # Save the histogram as JPG
-    plt.show()  # Show the histogram in the console
-    plt.close()
-
-# Histograms for each variable, without hue for the training set
-for var in variables:
-    # Replace '/' with '_' to make valid filenames
-    safe_var_name = var.replace('/', '_')  # Replace any invalid characters
-    plt.figure(figsize=(10, 6))
-    ax = sns.histplot(data=X_train, x=var, bins=20)
-    plt.title(f"Histogram of {var} - Training Set", fontsize=16)
-    plt.xlabel(var, fontsize=14)
-    plt.ylabel("Frequency", fontsize=14)
-    plt.grid(True)
-    plt.xticks(fontsize=12)
-
-    # Add text annotations for each bar
-    for p in ax.patches:
-        ax.annotate(f'{int(p.get_height())}', 
-                    (p.get_x() + p.get_width() / 2., p.get_height()), 
-                    ha='center', va='bottom', fontsize=10)
-
-    # Remove zeros from x-ticks
-    ticks = ax.get_xticks()
-    ticks = [tick for tick in ticks if tick != 0]  # Exclude zero
-    ax.set_xticks(ticks)
-
-    plt.savefig(os.path.join(save_dir, f"Histogram_{safe_var_name}_Training_Set.jpg"))  # Save the histogram as JPG
-    plt.show()  # Show the histogram in the console
-    plt.close()
+# 4. Histogram of a/d for the entire dataset (without separating training and test sets)
+plt.figure(figsize=(10, 6))
+sns.histplot(df['a/d'], kde=False, bins=30, color='orange')
+plt.title("Histogram of a/d for Entire Dataset", fontsize=16)
+plt.xlabel("a/d", fontsize=14)
+plt.ylabel("Frequency", fontsize=14)
+plt.axvline(x=df['a/d'].min(), color='red', linestyle='--', linewidth=2, label='Lower Limit')
+plt.axvline(x=df['a/d'].max(), color='green', linestyle='--', linewidth=2, label='Upper Limit')
+plt.legend(fontsize=12)
+plt.grid(True)
+plt.savefig(os.path.join(save_dir, "Histogram_ad.jpg"))
+plt.show()
+plt.close()
 
 def predict_new_data(new_data):
     """
